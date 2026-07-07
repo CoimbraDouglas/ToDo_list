@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Minhas Tarefas</title>
+<style>
+  :root {
+    --bg: #f4f5f7;
+    --card: #ffffff;
+    --text: #1c1e21;
+    --muted: #6b7280;
+    --border: #e5e7eb;
+    --accent: #4f46e5;
+    --accent-hover: #4338ca;
+    --danger: #ef4444;
+    --done: #9ca3af;
+    --shadow: 0 1px 3px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.04);
+    --prio-alta: #ef4444;
+    --prio-media: #f59e0b;
+    --prio-baixa: #10b981;
+  }
+  [data-theme="dark"] {
+    --bg: #0f1115;
+    --card: #1a1d24;
+    --text: #e6e8eb;
+    --muted: #9ca3af;
+    --border: #2a2f3a;
+    --accent: #6366f1;
+    --accent-hover: #818cf8;
+    --danger: #f87171;
+    --done: #6b7280;
+    --shadow: 0 1px 3px rgba(0,0,0,.4);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.5;
+    min-height: 100vh;
+    padding: 24px 16px;
+    transition: background .2s, color .2s;
+  }
+  .app { max-width: 620px; margin: 0 auto; }
+  header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 20px;
+  }
+  h1 { font-size: 1.6rem; font-weight: 700; display: flex; align-items: center; gap: 10px; }
+  h1 .icon { font-size: 1.5rem; }
+  .theme-btn {
+    background: var(--card); border: 1px solid var(--border); color: var(--text);
+    width: 40px; height: 40px; border-radius: 10px; cursor: pointer; font-size: 1.1rem;
+    display: grid; place-items: center; box-shadow: var(--shadow); transition: .15s;
+  }
+  .theme-btn:hover { border-color: var(--accent); }
+
+  .add-card {
+    background: var(--card); border: 1px solid var(--border); border-radius: 14px;
+    padding: 14px; box-shadow: var(--shadow); margin-bottom: 18px;
+  }
+  .add-row { display: flex; gap: 10px; }
+  input[type="text"] {
+    flex: 1; background: transparent; border: 1px solid var(--border);
+    border-radius: 10px; padding: 12px 14px; color: var(--text); font-size: 1rem; outline: none;
+    transition: border-color .15s;
+  }
+  input[type="text"]:focus { border-color: var(--accent); }
+  select {
+    background: var(--bg); border: 1px solid var(--border); border-radius: 10px;
+    padding: 0 10px; color: var(--text); font-size: .9rem; cursor: pointer; outline: none;
+  }
+  .btn {
+    background: var(--accent); color: #fff; border: none; border-radius: 10px;
+    padding: 12px 18px; font-size: 1rem; font-weight: 600; cursor: pointer; transition: .15s;
+    white-space: nowrap;
+  }
+  .btn:hover { background: var(--accent-hover); }
+  .add-options { display: flex; gap: 10px; margin-top: 10px; flex-wrap: wrap; align-items: center; }
+  .due-field {
+    display: flex; align-items: center; gap: 6px; font-size: .85rem; color: var(--muted);
+    background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 4px 10px;
+  }
+  .due-field input[type="datetime-local"] {
+    background: transparent; border: none; color: var(--text); font-size: .85rem;
+    outline: none; font-family: inherit; color-scheme: light dark;
+  }
+
+  .toolbar {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 12px; gap: 10px; flex-wrap: wrap;
+  }
+  .filters { display: flex; gap: 6px; background: var(--card); border: 1px solid var(--border);
+    border-radius: 10px; padding: 4px; box-shadow: var(--shadow); }
+  .filter {
+    background: transparent; border: none; color: var(--muted); padding: 6px 12px;
+    border-radius: 7px; cursor: pointer; font-size: .88rem; font-weight: 500; transition: .15s;
+  }
+  .filter.active { background: var(--accent); color: #fff; }
+  .clear-btn {
+    background: transparent; border: none; color: var(--muted); cursor: pointer;
+    font-size: .85rem; text-decoration: underline; padding: 4px;
+  }
+  .clear-btn:hover { color: var(--danger); }
+
+  ul { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+  li {
+    background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+    padding: 12px 14px; display: flex; align-items: center; gap: 12px;
+    box-shadow: var(--shadow); position: relative; overflow: hidden;
+    animation: pop .18s ease;
+  }
+  @keyframes pop { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+  li::before {
+    content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px;
+  }
+  li[data-prio="alta"]::before { background: var(--prio-alta); }
+  li[data-prio="media"]::before { background: var(--prio-media); }
+  li[data-prio="baixa"]::before { background: var(--prio-baixa); }
+
+  .check {
+    width: 22px; height: 22px; border: 2px solid var(--border); border-radius: 50%;
+    cursor: pointer; flex-shrink: 0; display: grid; place-items: center; transition: .15s;
+  }
+  .check:hover { border-color: var(--accent); }
+  li.done .check { background: var(--accent); border-color: var(--accent); }
+  .check svg { width: 12px; height: 12px; opacity: 0; }
+  li.done .check svg { opacity: 1; }
+
+  .task-text { flex: 1; font-size: 1rem; word-break: break-word; cursor: text; }
+  li.done .task-text { color: var(--done); text-decoration: line-through; }
+  .task-meta { font-size: .72rem; color: var(--muted); margin-top: 2px; display: flex; gap: 8px; flex-wrap: wrap; }
+  .due-tag { display: inline-flex; align-items: center; gap: 3px; padding: 1px 6px;
+    border-radius: 5px; background: var(--bg); border: 1px solid var(--border); font-weight: 500; }
+  .due-tag.overdue { color: var(--danger); border-color: var(--danger); font-weight: 600; }
+  .due-tag.soon { color: var(--prio-media); border-color: var(--prio-media); }
+  li.done .due-tag { color: var(--done) !important; border-color: var(--border) !important; }
+
+  .actions { display: flex; gap: 4px; opacity: 0; transition: opacity .15s; }
+  li:hover .actions, li:focus-within .actions { opacity: 1; }
+  .icon-btn {
+    background: transparent; border: none; color: var(--muted); cursor: pointer;
+    width: 32px; height: 32px; border-radius: 8px; display: grid; place-items: center; transition: .15s;
+  }
+  .icon-btn:hover { background: var(--bg); color: var(--text); }
+  .icon-btn.del:hover { color: var(--danger); }
+  .edit-input {
+    flex: 1; background: var(--bg); border: 1px solid var(--accent); border-radius: 8px;
+    padding: 8px 10px; color: var(--text); font-size: 1rem; outline: none;
+  }
+
+  .empty { text-align: center; padding: 50px 20px; color: var(--muted); }
+  .empty .big { font-size: 2.6rem; margin-bottom: 10px; }
+
+  .stats {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--border);
+    font-size: .85rem; color: var(--muted);
+  }
+  .progress-wrap { flex: 1; margin: 0 14px; height: 6px; background: var(--border);
+    border-radius: 3px; overflow: hidden; }
+  .progress-bar { height: 100%; background: var(--accent); width: 0; transition: width .3s; }
+
+  @media (max-width: 480px) {
+    .add-row { flex-direction: column; }
+    .toolbar { justify-content: center; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1><span class="icon">✅</span> Minhas Tarefas</h1>
+    <div style="display:flex; gap:8px;">
+      <button class="theme-btn" id="soundBtn" title="Ligar/desligar sons">🔊</button>
+      <button class="theme-btn" id="themeBtn" title="Alternar tema">🌙</button>
+    </div>
+  </header>
+
+  <div class="add-card">
+    <form id="addForm" class="add-row">
+      <input type="text" id="taskInput" placeholder="O que precisa ser feito?" autocomplete="off" maxlength="200">
+      <button type="submit" class="btn">Adicionar</button>
+    </form>
+    <div class="add-options">
+      <select id="prioInput" title="Prioridade">
+        <option value="baixa">🟢 Baixa</option>
+        <option value="media" selected>🟡 Média</option>
+        <option value="alta">🔴 Alta</option>
+      </select>
+      <label class="due-field" title="Prazo (data e horário)">
+        <span>⏰ Prazo:</span>
+        <input type="datetime-local" id="dueInput">
+      </label>
+    </div>
+  </div>
+
+  <div class="toolbar">
+    <div class="filters">
+      <button class="filter active" data-filter="todas">Todas</button>
+      <button class="filter" data-filter="ativas">Ativas</button>
+      <button class="filter" data-filter="concluidas">Concluídas</button>
+    </div>
+    <button class="clear-btn" id="clearDone">Limpar concluídas</button>
+  </div>
+
+  <ul id="list"></ul>
+
+  <div class="stats" id="stats" style="display:none;">
+    <span id="countText">0 tarefas</span>
+    <div class="progress-wrap"><div class="progress-bar" id="progressBar"></div></div>
+    <span id="pctText">0%</span>
+  </div>
+</div>
+
+<script>
+(function () {
+  const STORAGE_KEY = "todo.tasks.v1";
+  const THEME_KEY = "todo.theme";
+  const SOUND_KEY = "todo.sound";
+
+  // ---- Sons (Web Audio API, sem arquivos externos) ----
+  let soundOn = localStorage.getItem(SOUND_KEY) !== "off";
+  let audioCtx = null;
+  function ctx() {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === "suspended") audioCtx.resume();
+    return audioCtx;
+  }
+  // Toca uma sequência de notas: [freq, inicio(s), duracao(s), tipo, volume]
+  function beep(notes) {
+    if (!soundOn) return;
+    try {
+      const ac = ctx();
+      const t0 = ac.currentTime;
+      notes.forEach(([freq, start, dur, type = "sine", vol = 0.18]) => {
+        const osc = ac.createOscillator();
+        const gain = ac.createGain();
+        osc.type = type;
+        osc.frequency.value = freq;
+        gain.gain.setValueAtTime(0, t0 + start);
+        gain.gain.linearRampToValueAtTime(vol, t0 + start + 0.012);
+        gain.gain.exponentialRampToValueAtTime(0.0001, t0 + start + dur);
+        osc.connect(gain).connect(ac.destination);
+        osc.start(t0 + start);
+        osc.stop(t0 + start + dur + 0.02);
+      });
+    } catch (e) { /* áudio indisponível */ }
+  }
+  const sounds = {
+    add:      () => beep([[523.25, 0, 0.12, "sine"], [783.99, 0.07, 0.14, "sine"]]),      // Dó→Sol, subindo
+    complete: () => beep([[659.25, 0, 0.1, "triangle"], [987.77, 0.08, 0.18, "triangle"]]),// Mi→Si, alegre
+    uncheck:  () => beep([[440, 0, 0.1, "sine", 0.14]]),                                    // Lá curto
+    edit:     () => beep([[880, 0, 0.05, "square", 0.08]]),                                 // clique agudo
+    save:     () => beep([[587.33, 0, 0.09, "sine"], [880, 0.06, 0.12, "sine"]]),           // Ré→Lá
+    delete:   () => beep([[392, 0, 0.1, "sawtooth", 0.14], [261.63, 0.08, 0.16, "sawtooth", 0.14]]) // Sol→Dó, descendo
+  };
+
+  let tasks = load();
+  let filter = "todas";
+
+  const list = document.getElementById("list");
+  const form = document.getElementById("addForm");
+  const input = document.getElementById("taskInput");
+  const prioInput = document.getElementById("prioInput");
+  const dueInput = document.getElementById("dueInput");
+  const stats = document.getElementById("stats");
+  const countText = document.getElementById("countText");
+  const pctText = document.getElementById("pctText");
+  const progressBar = document.getElementById("progressBar");
+  const themeBtn = document.getElementById("themeBtn");
+  const soundBtn = document.getElementById("soundBtn");
+
+  // ---- Botão de som ----
+  function refreshSoundBtn() {
+    soundBtn.textContent = soundOn ? "🔊" : "🔇";
+    soundBtn.title = soundOn ? "Desligar sons" : "Ligar sons";
+  }
+  refreshSoundBtn();
+  soundBtn.addEventListener("click", () => {
+    soundOn = !soundOn;
+    localStorage.setItem(SOUND_KEY, soundOn ? "on" : "off");
+    refreshSoundBtn();
+    if (soundOn) sounds.save();
+  });
+
+  // ---- Tema ----
+  function applyTheme(t) {
+    document.documentElement.setAttribute("data-theme", t);
+    themeBtn.textContent = t === "dark" ? "☀️" : "🌙";
+    localStorage.setItem(THEME_KEY, t);
+  }
+  applyTheme(localStorage.getItem(THEME_KEY) ||
+    (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"));
+  themeBtn.addEventListener("click", () => {
+    applyTheme(document.documentElement.getAttribute("data-theme") === "dark" ? "light" : "dark");
+  });
+
+  // ---- Persistência ----
+  function load() {
+    try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
+    catch { return []; }
+  }
+  function save() { localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks)); }
+
+  // ---- CRUD ----
+  function addTask(text, prio, due) {
+    tasks.unshift({ id: Date.now() + "" + Math.random().toString(36).slice(2, 6),
+      text: text.trim(), done: false, prio, due: due || null, createdAt: Date.now() });
+    save(); render();
+  }
+  function updateTask(id, changes) {
+    const t = tasks.find(x => x.id === id);
+    if (t) { Object.assign(t, changes); save(); render(); }
+  }
+  function deleteTask(id) { tasks = tasks.filter(x => x.id !== id); save(); render(); }
+  function clearDone() { tasks = tasks.filter(x => !x.done); save(); render(); }
+
+  // ---- Render ----
+  const CHECK_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>';
+  const EDIT_SVG = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>';
+  const DEL_SVG = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>';
+  const prioLabel = { alta: "Alta", media: "Média", baixa: "Baixa" };
+
+  function fmtDate(ts) {
+    const d = new Date(ts);
+    return d.toLocaleDateString("pt-BR", { day: "2-digit", month: "short" });
+  }
+
+  // Prazo: retorna {label, status} ou null
+  function dueInfo(due, done) {
+    if (!due) return null;
+    const d = new Date(due);
+    if (isNaN(d)) return null;
+    const now = new Date();
+    const oneDay = 86400000;
+    const startOfDay = t => new Date(t.getFullYear(), t.getMonth(), t.getDate()).getTime();
+    const diffDays = Math.round((startOfDay(d) - startOfDay(now)) / oneDay);
+
+    let dayLabel;
+    if (diffDays === 0) dayLabel = "Hoje";
+    else if (diffDays === 1) dayLabel = "Amanhã";
+    else if (diffDays === -1) dayLabel = "Ontem";
+    else dayLabel = d.toLocaleDateString("pt-BR", { day: "2-digit", month: "short" });
+
+    const time = d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+    const label = `${dayLabel} ${time}`;
+
+    let status = "";
+    if (!done) {
+      if (d.getTime() < now.getTime()) status = "overdue";
+      else if (d.getTime() - now.getTime() < oneDay) status = "soon";
+    }
+    return { label, status };
+  }
+
+  function render() {
+    const visible = tasks.filter(t =>
+      filter === "todas" ? true : filter === "ativas" ? !t.done : t.done);
+
+    list.innerHTML = "";
+
+    if (visible.length === 0) {
+      const msg = tasks.length === 0 ? ["📝", "Nenhuma tarefa ainda", "Adicione a primeira acima!"]
+        : filter === "concluidas" ? ["🎯", "Nada concluído ainda", "Bora fazer acontecer!"]
+        : ["🎉", "Tudo em dia!", "Nenhuma tarefa pendente."];
+      list.innerHTML = `<div class="empty"><div class="big">${msg[0]}</div>
+        <strong>${msg[1]}</strong><br><span>${msg[2]}</span></div>`;
+    }
+
+    visible.forEach(t => {
+      const li = document.createElement("li");
+      li.dataset.prio = t.prio;
+      if (t.done) li.classList.add("done");
+
+      const check = document.createElement("div");
+      check.className = "check";
+      check.innerHTML = CHECK_SVG;
+      check.title = t.done ? "Marcar como pendente" : "Marcar como concluída";
+      check.onclick = () => { sounds[t.done ? "uncheck" : "complete"](); updateTask(t.id, { done: !t.done }); };
+
+      const content = document.createElement("div");
+      content.style.flex = "1";
+      const span = document.createElement("div");
+      span.className = "task-text";
+      span.textContent = t.text;
+      span.title = "Clique para editar";
+      span.onclick = () => startEdit(li, t, content);
+      const meta = document.createElement("div");
+      meta.className = "task-meta";
+      const base = document.createElement("span");
+      base.textContent = `${prioLabel[t.prio]} · ${fmtDate(t.createdAt)}`;
+      meta.appendChild(base);
+      const di = dueInfo(t.due, t.done);
+      if (di) {
+        const tag = document.createElement("span");
+        tag.className = "due-tag" + (di.status ? " " + di.status : "");
+        tag.textContent = (di.status === "overdue" ? "⚠️ " : "⏰ ") + di.label;
+        meta.appendChild(tag);
+      }
+      content.appendChild(span);
+      content.appendChild(meta);
+
+      const actions = document.createElement("div");
+      actions.className = "actions";
+      const editBtn = document.createElement("button");
+      editBtn.className = "icon-btn"; editBtn.innerHTML = EDIT_SVG; editBtn.title = "Editar";
+      editBtn.onclick = () => startEdit(li, t, content);
+      const delBtn = document.createElement("button");
+      delBtn.className = "icon-btn del"; delBtn.innerHTML = DEL_SVG; delBtn.title = "Excluir";
+      delBtn.onclick = () => { sounds.delete(); deleteTask(t.id); };
+      actions.appendChild(editBtn);
+      actions.appendChild(delBtn);
+
+      li.appendChild(check);
+      li.appendChild(content);
+      li.appendChild(actions);
+      list.appendChild(li);
+    });
+
+    updateStats();
+  }
+
+  function startEdit(li, t, content) {
+    if (li.querySelector(".edit-input")) return;
+    sounds.edit();
+    const editInput = document.createElement("input");
+    editInput.className = "edit-input";
+    editInput.value = t.text;
+    content.replaceWith(editInput);
+    editInput.focus();
+    editInput.setSelectionRange(t.text.length, t.text.length);
+
+    const commit = () => {
+      const val = editInput.value.trim();
+      if (val && val !== t.text) { sounds.save(); updateTask(t.id, { text: val }); }
+      else render();
+    };
+    editInput.addEventListener("keydown", e => {
+      if (e.key === "Enter") commit();
+      if (e.key === "Escape") render();
+    });
+    editInput.addEventListener("blur", commit);
+  }
+
+  function updateStats() {
+    const total = tasks.length;
+    const done = tasks.filter(t => t.done).length;
+    if (total === 0) { stats.style.display = "none"; return; }
+    stats.style.display = "flex";
+    countText.textContent = `${done} de ${total} concluída${total > 1 ? "s" : ""}`;
+    const pct = Math.round((done / total) * 100);
+    pctText.textContent = pct + "%";
+    progressBar.style.width = pct + "%";
+  }
+
+  // ---- Eventos ----
+  form.addEventListener("submit", e => {
+    e.preventDefault();
+    const val = input.value.trim();
+    if (!val) return;
+    sounds.add();
+    addTask(val, prioInput.value, dueInput.value);
+    input.value = "";
+    dueInput.value = "";
+    input.focus();
+  });
+
+  document.querySelectorAll(".filter").forEach(btn => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".filter").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      filter = btn.dataset.filter;
+      render();
+    });
+  });
+
+  document.getElementById("clearDone").addEventListener("click", () => {
+    if (tasks.some(t => t.done)) { sounds.delete(); clearDone(); }
+  });
+
+  render();
+})();
+</script>
+</body>
+</html>
