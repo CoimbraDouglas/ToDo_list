@@ -5,7 +5,7 @@
 [![Downloads](https://img.shields.io/github/downloads/CoimbraDouglas/ToDo_list/total?style=for-the-badge&label=downloads)](https://github.com/CoimbraDouglas/ToDo_list/releases)
 [![Licença](https://img.shields.io/badge/licen%C3%A7a-MIT-green?style=for-the-badge)](#-licença)
 
-Programa de lista de tarefas (To-Do) **standalone**: um único arquivo `index.html`, sem servidor, sem instalação e **100% offline**. Basta abrir no navegador — ou instalar como programa no Windows.
+Programa de lista de tarefas (To-Do) **standalone**: um único arquivo `index.html`, sem servidor, sem instalação e **100% offline**. Basta abrir no navegador — ou instalar como programa no seu desktop.
 
 ## ⬇️ Download
 
