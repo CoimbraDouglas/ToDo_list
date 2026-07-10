@@ -33,7 +33,7 @@ Só baixar e executar o instalador.
 
 ## 🛠️ Tecnologias
 
-HTML, CSS e JavaScript puro (vanilla) — sem dependências ou build.
+HTML, CSS e JavaScript — sem dependências ou build.
 
 ## 📄 Licença
 
