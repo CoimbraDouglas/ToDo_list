@@ -40,6 +40,26 @@ Só baixar e executar o instalador.
 
 HTML, CSS e JavaScript — sem dependências ou build.
 
+## 🆕 Novidades da v1.1.0
+
+Em relação à **v1.0**, esta versão adiciona:
+
+- 🔔 **Alarme por tarefa com antecedência** — em cada tarefa você escolhe um aviso no sistema: *no horário*, *5 min*, *30 min* ou *1 hora antes* do prazo (notificação nativa, funciona no navegador e no app).
+- 🔍 **Busca** — filtre as tarefas por texto em tempo real.
+- ↕️ **Ordenação** — Manual · Por prazo · Prioridade · A–Z · Recentes.
+- 🖐️ **Arrastar para reordenar** — organize as tarefas na mão (modo Manual).
+- 📤📥 **Exportar / Importar** — backup em `.json`, com opção de *substituir* ou *juntar* as tarefas.
+- 🎨 **Novo ícone** do aplicativo.
+
+> A base da v1.0 continua igual: CRUD completo, prioridades, prazos com destaque de atrasadas/próximas, filtros, barra de progresso, sons e tema claro/escuro — tudo **standalone e 100% offline**.
+
+Se preferir em formato de changelog (mais enxuto, estilo Keep a Changelog), esta é uma alternativa:
+
+## 📜 Changelog
+
+### v1.1.0
+**Adicionado:** alarme por tarefa com antecedência (no horário / 5 / 30 / 60 min antes) · busca por texto · ordenação (prazo, prioridade, A–Z, recentes) · arrastar para reordenar · exportar/importar backup `.json` · novo ícone.
+
 ## 📄 Licença
 
 MIT
