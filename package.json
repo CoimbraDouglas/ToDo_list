@@ -1,6 +1,6 @@
 {
   "name": "minhas-tarefas",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Lista de tarefas (To-Do) standalone: CRUD, prazos, prioridades, sons e tema claro/escuro.",
   "author": "CoimbraDouglas",
   "main": "main.js",
@@ -25,7 +25,9 @@
       "target": [
         {
           "target": "nsis",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         }
       ]
     },
