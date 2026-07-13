@@ -162,9 +162,48 @@
     border-radius: 3px; overflow: hidden; }
   .progress-bar { height: 100%; background: var(--accent); width: 0; transition: width .3s; }
 
+  /* Busca */
+  .search-wrap { position: relative; display: flex; align-items: center; margin-bottom: 12px; }
+  .search-icon { position: absolute; left: 12px; font-size: .95rem; opacity: .7; pointer-events: none; }
+  #searchInput {
+    width: 100%; background: var(--card); border: 1px solid var(--border);
+    border-radius: 10px; padding: 10px 38px; color: var(--text); font-size: .95rem;
+    outline: none; box-shadow: var(--shadow); transition: border-color .15s;
+  }
+  #searchInput:focus { border-color: var(--accent); }
+  .search-clear {
+    position: absolute; right: 8px; background: transparent; border: none; color: var(--muted);
+    cursor: pointer; width: 26px; height: 26px; border-radius: 7px; font-size: .85rem;
+    display: grid; place-items: center;
+  }
+  .search-clear:hover { background: var(--bg); color: var(--danger); }
+
+  /* Ordenar + backup */
+  .toolbar-right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .sort-select { padding: 6px 10px; font-size: .85rem; }
+  .backup-row { display: flex; gap: 8px; margin-top: 10px; justify-content: flex-end; flex-wrap: wrap; }
+  .mini-btn {
+    background: var(--card); border: 1px solid var(--border); color: var(--muted);
+    cursor: pointer; font-size: .82rem; padding: 6px 12px; border-radius: 9px;
+    box-shadow: var(--shadow); transition: .15s;
+  }
+  .mini-btn:hover { border-color: var(--accent); color: var(--text); }
+
+  /* Arrastar para reordenar */
+  .drag-handle {
+    cursor: grab; color: var(--muted); opacity: 0; flex-shrink: 0;
+    font-size: 1rem; line-height: 1; user-select: none; transition: opacity .15s;
+    margin: 0 -4px 0 -2px;
+  }
+  li:hover .drag-handle { opacity: .45; }
+  .drag-handle:active { cursor: grabbing; }
+  li.dragging { opacity: .4; }
+  li.drag-over { border-color: var(--accent); border-style: dashed; }
+
   @media (max-width: 480px) {
     .add-row { flex-direction: column; }
     .toolbar { justify-content: center; }
+    .toolbar-right { justify-content: center; width: 100%; }
   }
 </style>
 </head>
@@ -196,13 +235,34 @@
     </div>
   </div>
 
+  <div class="search-wrap">
+    <span class="search-icon">🔍</span>
+    <input type="text" id="searchInput" placeholder="Buscar tarefas..." autocomplete="off">
+    <button class="search-clear" id="searchClear" title="Limpar busca" style="display:none;">✕</button>
+  </div>
+
   <div class="toolbar">
     <div class="filters">
       <button class="filter active" data-filter="todas">Todas</button>
       <button class="filter" data-filter="ativas">Ativas</button>
       <button class="filter" data-filter="concluidas">Concluídas</button>
     </div>
-    <button class="clear-btn" id="clearDone">Limpar concluídas</button>
+    <div class="toolbar-right">
+      <select id="sortInput" class="sort-select" title="Ordenar por">
+        <option value="manual">↕️ Manual</option>
+        <option value="prazo">⏰ Por prazo</option>
+        <option value="prioridade">🚩 Prioridade</option>
+        <option value="alfabetica">🔤 A–Z</option>
+        <option value="criacao">🕒 Recentes</option>
+      </select>
+      <button class="clear-btn" id="clearDone">Limpar concluídas</button>
+    </div>
+  </div>
+
+  <div class="backup-row">
+    <button class="mini-btn" id="exportBtn" title="Salvar backup das tarefas (.json)">📤 Exportar</button>
+    <button class="mini-btn" id="importBtn" title="Carregar tarefas de um backup (.json)">📥 Importar</button>
+    <input type="file" id="importFile" accept="application/json,.json" style="display:none;">
   </div>
 
   <ul id="list"></ul>
@@ -219,6 +279,7 @@
   const STORAGE_KEY = "todo.tasks.v1";
   const THEME_KEY = "todo.theme";
   const SOUND_KEY = "todo.sound";
+  const SORT_KEY = "todo.sort";
 
   // ---- Sons (Web Audio API, sem arquivos externos) ----
   let soundOn = localStorage.getItem(SOUND_KEY) !== "off";
@@ -259,6 +320,9 @@
 
   let tasks = load();
   let filter = "todas";
+  let search = "";
+  let sort = localStorage.getItem(SORT_KEY) || "manual";
+  let dragId = null;
 
   const list = document.getElementById("list");
   const form = document.getElementById("addForm");
@@ -271,6 +335,12 @@
   const progressBar = document.getElementById("progressBar");
   const themeBtn = document.getElementById("themeBtn");
   const soundBtn = document.getElementById("soundBtn");
+  const searchInput = document.getElementById("searchInput");
+  const searchClear = document.getElementById("searchClear");
+  const sortInput = document.getElementById("sortInput");
+  const exportBtn = document.getElementById("exportBtn");
+  const importBtn = document.getElementById("importBtn");
+  const importFile = document.getElementById("importFile");
 
   // ---- Botão de som ----
   function refreshSoundBtn() {
@@ -355,14 +425,40 @@
     return { label, status };
   }
 
+  // ---- Ordenação ----
+  const PRIO_ORDER = { alta: 0, media: 1, baixa: 2 };
+  function sortTasks(arr) {
+    if (sort === "manual") return arr;
+    const a = arr.slice();
+    if (sort === "prazo") {
+      a.sort((x, y) => (x.due ? new Date(x.due).getTime() : Infinity)
+                     - (y.due ? new Date(y.due).getTime() : Infinity));
+    } else if (sort === "prioridade") {
+      a.sort((x, y) => PRIO_ORDER[x.prio] - PRIO_ORDER[y.prio]);
+    } else if (sort === "alfabetica") {
+      a.sort((x, y) => x.text.localeCompare(y.text, "pt-BR", { sensitivity: "base" }));
+    } else if (sort === "criacao") {
+      a.sort((x, y) => y.createdAt - x.createdAt);
+    }
+    return a;
+  }
+
   function render() {
-    const visible = tasks.filter(t =>
-      filter === "todas" ? true : filter === "ativas" ? !t.done : t.done);
+    const q = search.trim().toLowerCase();
+    let visible = tasks.filter(t => {
+      const statusOk = filter === "todas" ? true : filter === "ativas" ? !t.done : t.done;
+      const searchOk = !q || t.text.toLowerCase().includes(q);
+      return statusOk && searchOk;
+    });
+    visible = sortTasks(visible);
+    // Reordenar por arraste só faz sentido sem filtros/busca/ordenação ativa
+    const dragEnabled = sort === "manual" && filter === "todas" && !q;
 
     list.innerHTML = "";
 
     if (visible.length === 0) {
-      const msg = tasks.length === 0 ? ["📝", "Nenhuma tarefa ainda", "Adicione a primeira acima!"]
+      const msg = q ? ["🔍", "Nada encontrado", "Nenhuma tarefa corresponde à busca."]
+        : tasks.length === 0 ? ["📝", "Nenhuma tarefa ainda", "Adicione a primeira acima!"]
         : filter === "concluidas" ? ["🎯", "Nada concluído ainda", "Bora fazer acontecer!"]
         : ["🎉", "Tudo em dia!", "Nenhuma tarefa pendente."];
       list.innerHTML = `<div class="empty"><div class="big">${msg[0]}</div>
@@ -413,6 +509,15 @@
       actions.appendChild(editBtn);
       actions.appendChild(delBtn);
 
+      if (dragEnabled) {
+        li.setAttribute("draggable", "true");
+        const handle = document.createElement("span");
+        handle.className = "drag-handle";
+        handle.textContent = "⠿";
+        handle.title = "Arraste para reordenar";
+        li.appendChild(handle);
+        attachDrag(li, t.id);
+      }
       li.appendChild(check);
       li.appendChild(content);
       li.appendChild(actions);
@@ -422,8 +527,50 @@
     updateStats();
   }
 
+  // ---- Arrastar para reordenar ----
+  function attachDrag(li, id) {
+    li.addEventListener("dragstart", e => {
+      dragId = id;
+      li.classList.add("dragging");
+      e.dataTransfer.effectAllowed = "move";
+      try { e.dataTransfer.setData("text/plain", id); } catch (_) {}
+    });
+    li.addEventListener("dragend", () => {
+      dragId = null;
+      li.classList.remove("dragging");
+      document.querySelectorAll("li.drag-over").forEach(el => el.classList.remove("drag-over"));
+    });
+    li.addEventListener("dragover", e => {
+      if (dragId === null || dragId === id) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "move";
+      li.classList.add("drag-over");
+    });
+    li.addEventListener("dragleave", () => li.classList.remove("drag-over"));
+    li.addEventListener("drop", e => {
+      e.preventDefault();
+      li.classList.remove("drag-over");
+      if (dragId === null || dragId === id) return;
+      const after = (e.clientY - li.getBoundingClientRect().top) > li.offsetHeight / 2;
+      reorder(dragId, id, after);
+    });
+  }
+
+  function reorder(fromId, targetId, insertAfter) {
+    const from = tasks.findIndex(t => t.id === fromId);
+    if (from < 0) return;
+    const [moved] = tasks.splice(from, 1);
+    let to = tasks.findIndex(t => t.id === targetId);
+    if (to < 0) { tasks.splice(from, 0, moved); return; }
+    if (insertAfter) to += 1;
+    tasks.splice(to, 0, moved);
+    sounds.save();
+    save(); render();
+  }
+
   function startEdit(li, t, content) {
     if (li.querySelector(".edit-input")) return;
+    li.setAttribute("draggable", "false");
     sounds.edit();
     const editInput = document.createElement("input");
     editInput.className = "edit-input";
@@ -478,6 +625,83 @@
 
   document.getElementById("clearDone").addEventListener("click", () => {
     if (tasks.some(t => t.done)) { sounds.delete(); clearDone(); }
+  });
+
+  // ---- Busca ----
+  searchInput.addEventListener("input", () => {
+    search = searchInput.value;
+    searchClear.style.display = search ? "grid" : "none";
+    render();
+  });
+  searchClear.addEventListener("click", () => {
+    search = "";
+    searchInput.value = "";
+    searchClear.style.display = "none";
+    searchInput.focus();
+    render();
+  });
+
+  // ---- Ordenação ----
+  sortInput.value = sort;
+  sortInput.addEventListener("change", () => {
+    sort = sortInput.value;
+    localStorage.setItem(SORT_KEY, sort);
+    render();
+  });
+
+  // ---- Exportar / Importar (backup .json) ----
+  function exportTasks() {
+    const blob = new Blob([JSON.stringify(tasks, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `minhas-tarefas-${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    sounds.save();
+  }
+  exportBtn.addEventListener("click", exportTasks);
+
+  importBtn.addEventListener("click", () => importFile.click());
+  importFile.addEventListener("change", () => {
+    const file = importFile.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const parsed = JSON.parse(reader.result);
+        if (!Array.isArray(parsed)) throw new Error("formato");
+        const cleaned = parsed
+          .filter(t => t && typeof t.text === "string")
+          .map(t => ({
+            id: t.id || (Date.now() + "" + Math.random().toString(36).slice(2, 6)),
+            text: String(t.text).slice(0, 200),
+            done: !!t.done,
+            prio: ["alta", "media", "baixa"].includes(t.prio) ? t.prio : "media",
+            due: t.due || null,
+            createdAt: t.createdAt || Date.now()
+          }));
+        if (cleaned.length === 0) { alert("Nenhuma tarefa válida encontrada no arquivo."); return; }
+        const replace = tasks.length === 0 || confirm(
+          `Importar ${cleaned.length} tarefa(s).\n\n` +
+          `OK = substituir as ${tasks.length} tarefas atuais\n` +
+          `Cancelar = juntar com as atuais`);
+        if (replace) {
+          tasks = cleaned;
+        } else {
+          const existing = new Set(tasks.map(t => t.id));
+          cleaned.forEach(t => { if (!existing.has(t.id)) tasks.push(t); });
+        }
+        save(); render(); sounds.add();
+      } catch (_) {
+        alert("Arquivo inválido. Selecione um backup .json exportado por este app.");
+      } finally {
+        importFile.value = "";
+      }
+    };
+    reader.readAsText(file);
   });
 
   render();

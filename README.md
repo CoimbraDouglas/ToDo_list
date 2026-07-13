@@ -21,6 +21,10 @@ Após baixar, execute o instalador. Se o **Windows SmartScreen** aparecer (app s
 - **Armazenamento local** — tudo salvo no `localStorage`, persiste ao fechar o navegador
 - **Prioridades** — 🟢 Baixa · 🟡 Média · 🔴 Alta (com barra colorida)
 - **Prazo (data + horário)** — com destaque de tarefas **atrasadas** (⚠️) e **próximas** (⏰)
+- **Busca** — filtre tarefas por texto em tempo real 🔍
+- **Ordenação** — Manual · Por prazo · Prioridade · A–Z · Recentes
+- **Arrastar para reordenar** — organize as tarefas na mão (modo Manual) 🖐️
+- **Exportar / Importar** — backup em `.json`, com opção de substituir ou juntar 📤📥
 - **Filtros** — Todas · Ativas · Concluídas
 - **Barra de progresso** com percentual concluído
 - **Sons de feedback** — ao adicionar, concluir, editar, salvar e excluir (via Web Audio API, sem arquivos externos) — com botão 🔊/🔇
