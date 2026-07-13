@@ -1,0 +1,43 @@
+{
+  "name": "minhas-tarefas",
+  "version": "1.0.0",
+  "description": "Lista de tarefas (To-Do) standalone: CRUD, prazos, prioridades, sons e tema claro/escuro.",
+  "author": "CoimbraDouglas",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win"
+  },
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "com.coimbradouglas.minhastarefas",
+    "productName": "Minhas Tarefas",
+    "files": [
+      "main.js",
+      "index.html",
+      "build/icon.png"
+    ],
+    "win": {
+      "icon": "build/icon.ico",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Minhas Tarefas",
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico"
+    }
+  }
+}

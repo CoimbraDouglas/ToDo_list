@@ -7,3 +7,8 @@ Desktop.ini
 .vscode/
 .idea/
 *.swp
+
+# Node / build do Electron
+node_modules/
+dist/
+npm-debug.log*
