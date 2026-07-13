@@ -21,6 +21,7 @@ Após baixar, execute o instalador. Se o **Windows SmartScreen** aparecer (app s
 - **Armazenamento local** — tudo salvo no `localStorage`, persiste ao fechar o navegador
 - **Prioridades** — 🟢 Baixa · 🟡 Média · 🔴 Alta (com barra colorida)
 - **Prazo (data + horário)** — com destaque de tarefas **atrasadas** (⚠️) e **próximas** (⏰)
+- **Alarme por tarefa com antecedência** — em cada tarefa você escolhe o aviso no sistema: no horário, 5 min, 30 min ou 1 h antes do prazo (ao criar ou pelo seletor 🔔 ao lado do prazo)
 - **Busca** — filtre tarefas por texto em tempo real 🔍
 - **Ordenação** — Manual · Por prazo · Prioridade · A–Z · Recentes
 - **Arrastar para reordenar** — organize as tarefas na mão (modo Manual) 🖐️

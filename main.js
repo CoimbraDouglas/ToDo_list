@@ -21,6 +21,9 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
+  // Garante que as notificações do Windows apareçam com o nome do app
+  if (process.platform === "win32") app.setAppUserModelId("com.coimbradouglas.minhastarefas");
+
   createWindow();
 
   app.on("activate", () => {

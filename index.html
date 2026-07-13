@@ -86,6 +86,23 @@
     background: transparent; border: none; color: var(--text); font-size: .85rem;
     outline: none; font-family: inherit; color-scheme: light dark;
   }
+  .alarm-field {
+    display: flex; align-items: center; gap: 6px; font-size: .85rem; color: var(--muted);
+    background: var(--bg); border: 1px solid var(--border); border-radius: 10px;
+    padding: 4px 8px 4px 10px; user-select: none;
+  }
+  .alarm-field select {
+    background: transparent; border: none; color: var(--text); font-size: .85rem;
+    cursor: pointer; outline: none; font-family: inherit;
+  }
+  .alarm-select {
+    background: var(--bg); border: 1px solid var(--border); border-radius: 5px;
+    color: var(--muted); font-size: .7rem; font-weight: 500; padding: 1px 4px;
+    cursor: pointer; outline: none; font-family: inherit; line-height: 1.4;
+  }
+  .alarm-select.on { color: var(--accent); border-color: var(--accent); }
+  .alarm-select:focus { border-color: var(--accent); }
+  li.done .alarm-select { color: var(--done) !important; border-color: var(--border) !important; }
 
   .toolbar {
     display: flex; align-items: center; justify-content: space-between;
@@ -232,6 +249,16 @@
         <span>⏰ Prazo:</span>
         <input type="datetime-local" id="dueInput">
       </label>
+      <label class="alarm-field" title="Alarme no sistema — antecedência (precisa de prazo definido)">
+        <span>🔔</span>
+        <select id="alarmInput">
+          <option value="">Sem alarme</option>
+          <option value="0">No horário</option>
+          <option value="5">5 min antes</option>
+          <option value="30">30 min antes</option>
+          <option value="60">1 hora antes</option>
+        </select>
+      </label>
     </div>
   </div>
 
@@ -329,6 +356,7 @@
   const input = document.getElementById("taskInput");
   const prioInput = document.getElementById("prioInput");
   const dueInput = document.getElementById("dueInput");
+  const alarmInput = document.getElementById("alarmInput");
   const stats = document.getElementById("stats");
   const countText = document.getElementById("countText");
   const pctText = document.getElementById("pctText");
@@ -367,6 +395,74 @@
     applyTheme(document.documentElement.getAttribute("data-theme") === "dark" ? "light" : "dark");
   });
 
+  // ---- Notificações de prazo (por tarefa) ----
+  function notifSupported() { return typeof Notification !== "undefined"; }
+  function notifPermission() { return notifSupported() ? Notification.permission : "denied"; }
+
+  // Garante permissão do sistema; resolve com true/false
+  function ensureNotifPermission() {
+    if (!notifSupported()) { alert("Este ambiente não suporta notificações."); return Promise.resolve(false); }
+    if (Notification.permission === "granted") return Promise.resolve(true);
+    if (Notification.permission === "denied") {
+      alert("As notificações estão bloqueadas nas configurações do sistema/navegador. Libere-as para receber os alarmes.");
+      return Promise.resolve(false);
+    }
+    return Notification.requestPermission()
+      .then(p => {
+        if (p !== "granted") alert("Permissão negada. O alarme fica marcado na tarefa, mas só avisará quando você liberar as notificações.");
+        return p === "granted";
+      })
+      .catch(() => false);
+  }
+
+  function alarmLabel(min) {
+    return min === 0 ? "no horário" : min === 60 ? "1 hora antes" : min + " min antes";
+  }
+
+  function fireDueNotification(t) {
+    try {
+      const dueMs = new Date(t.due).getTime();
+      const time = new Date(dueMs).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+      const antecedencia = t.alarm > 0 && dueMs > Date.now();
+      const title = antecedencia ? "⏰ Lembrete de prazo" : "⏰ Prazo encerrado";
+      const body = antecedencia
+        ? `${t.text}\nVence às ${time} (${alarmLabel(t.alarm)})`
+        : `${t.text}\nVencia às ${time}`;
+      const n = new Notification(title, { body, tag: "todo-" + t.id });
+      n.onclick = () => { try { window.focus(); } catch (_) {} };
+    } catch (_) { /* notificação indisponível */ }
+  }
+
+  // Avisa cada tarefa COM alarme quando chega o momento (prazo − antecedência)
+  function checkDue() {
+    if (notifPermission() !== "granted") return;
+    const now = Date.now();
+    let changed = false;
+    tasks.forEach(t => {
+      if (t.alarm != null && !t.done && t.due && !t.notified) {
+        const due = new Date(t.due).getTime();
+        if (isNaN(due)) return;
+        const notifyAt = due - t.alarm * 60000;
+        if (notifyAt <= now) {
+          fireDueNotification(t);
+          t.notified = true;
+          changed = true;
+        }
+      }
+    });
+    if (changed) save();
+  }
+
+  // Define/limpa o alarme (minutos de antecedência, ou null) de uma tarefa
+  function setAlarm(t, min) {
+    sounds.edit();
+    updateTask(t.id, { alarm: min, notified: false });
+    if (min != null) ensureNotifPermission().then(ok => { if (ok) checkDue(); });
+  }
+
+  setInterval(checkDue, 30000);       // checa a cada 30s
+  setTimeout(checkDue, 1500);         // e logo após abrir (avisa prazos vencidos enquanto fechado)
+
   // ---- Persistência ----
   function load() {
     try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
@@ -375,10 +471,12 @@
   function save() { localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks)); }
 
   // ---- CRUD ----
-  function addTask(text, prio, due) {
+  function addTask(text, prio, due, alarm) {
     tasks.unshift({ id: Date.now() + "" + Math.random().toString(36).slice(2, 6),
-      text: text.trim(), done: false, prio, due: due || null, createdAt: Date.now() });
+      text: text.trim(), done: false, prio, due: due || null, createdAt: Date.now(),
+      alarm: (due && alarm != null) ? alarm : null, notified: false });
     save(); render();
+    checkDue();
   }
   function updateTask(id, changes) {
     const t = tasks.find(x => x.id === id);
@@ -392,6 +490,7 @@
   const EDIT_SVG = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>';
   const DEL_SVG = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>';
   const prioLabel = { alta: "Alta", media: "Média", baixa: "Baixa" };
+  const ALARM_OPTS = [["", "🔕 Sem alarme"], ["0", "🔔 No horário"], ["5", "🔔 5 min antes"], ["30", "🔔 30 min antes"], ["60", "🔔 1 h antes"]];
 
   function fmtDate(ts) {
     const d = new Date(ts);
@@ -494,6 +593,18 @@
         tag.className = "due-tag" + (di.status ? " " + di.status : "");
         tag.textContent = (di.status === "overdue" ? "⚠️ " : "⏰ ") + di.label;
         meta.appendChild(tag);
+        const sel = document.createElement("select");
+        sel.className = "alarm-select" + (t.alarm != null ? " on" : "");
+        sel.title = "Alarme desta tarefa";
+        ALARM_OPTS.forEach(([v, label]) => {
+          const o = document.createElement("option");
+          o.value = v; o.textContent = label;
+          if ((v === "" && t.alarm == null) || (v !== "" && Number(v) === t.alarm)) o.selected = true;
+          sel.appendChild(o);
+        });
+        sel.onclick = e => e.stopPropagation();
+        sel.onchange = e => { e.stopPropagation(); setAlarm(t, sel.value === "" ? null : Number(sel.value)); };
+        meta.appendChild(sel);
       }
       content.appendChild(span);
       content.appendChild(meta);
@@ -608,10 +719,13 @@
     const val = input.value.trim();
     if (!val) return;
     sounds.add();
-    addTask(val, prioInput.value, dueInput.value);
+    const alarmMin = (alarmInput.value === "" || !dueInput.value) ? null : Number(alarmInput.value);
+    addTask(val, prioInput.value, dueInput.value, alarmMin);
     input.value = "";
     dueInput.value = "";
+    alarmInput.value = "";
     input.focus();
+    if (alarmMin != null) ensureNotifPermission().then(ok => { if (ok) checkDue(); });
   });
 
   document.querySelectorAll(".filter").forEach(btn => {
@@ -681,7 +795,9 @@
             done: !!t.done,
             prio: ["alta", "media", "baixa"].includes(t.prio) ? t.prio : "media",
             due: t.due || null,
-            createdAt: t.createdAt || Date.now()
+            createdAt: t.createdAt || Date.now(),
+            alarm: Number.isFinite(t.alarm) ? t.alarm : (t.alarm ? 0 : null),
+            notified: !!t.notified
           }));
         if (cleaned.length === 0) { alert("Nenhuma tarefa válida encontrada no arquivo."); return; }
         const replace = tasks.length === 0 || confirm(
